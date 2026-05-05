@@ -1,7 +1,7 @@
 {
   "name": "wechat-post-generator",
   "version": "1.0.0",
-  "description": "朋友圈文案生成器",
+  "description": "WeChat Post Generator",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

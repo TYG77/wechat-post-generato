@@ -34,7 +34,7 @@ server.listen(PORT, () => {
 });
 
 function runGenerator() {
-  const scriptPath = path.join(__dirname, '朋友圈文案生成器.js');
+  const scriptPath = path.join(__dirname, 'wechat-post-generator.js');
   console.log('🚀 正在运行文案生成器...');
   
   exec(`node "${scriptPath}"`, (error, stdout, stderr) => {
