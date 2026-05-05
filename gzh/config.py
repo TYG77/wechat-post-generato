@@ -1,0 +1,11 @@
+WECHAT_APP_ID = 'wxe2fe51ae91aa200a'
+WECHAT_APP_SECRET = 'ad6a3c75e38928c2c5896505b30693e3'
+
+SECRET_KEY = 'your_secret_key_here'
+DEBUG = True
+
+SQLALCHEMY_DATABASE_URI = 'sqlite:///gzh.db'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+OPENAI_API_KEY = 'your_openai_key_here'
+DOUBAN_API_KEY = 'ark-786d76bc-2497-40cf-9619-ba9ea6bc1e48-548c7'

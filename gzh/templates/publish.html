@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发布管理</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
+        .header { background: #07c160; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: normal; }
+        .btn { display: inline-block; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-success { background: #1989fa; color: white; }
+        .btn-default { background: #f5f5f5; color: #666; }
+        .container { padding: 24px; max-width: 1000px; margin: 0 auto; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .card h2 { font-size: 16px; color: #333; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .table th { background: #fafafa; color: #666; font-weight: normal; }
+        .status { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+        .status-draft { background: #e3f2fd; color: #1976d2; }
+        .status-ready { background: #fce4ec; color: #c2185b; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 8px; width: 500px; padding: 24px; }
+        .modal-content h3 { font-size: 16px; margin-bottom: 20px; }
+        .preview-content { padding: 16px; background: #fafafa; border-radius: 4px; max-height: 400px; overflow-y: auto; }
+        .preview-content h3 { margin-bottom: 12px; }
+        .preview-content img { max-width: 100%; height: auto; }
+        .modal-footer { text-align: right; margin-top: 20px; }
+        .progress { height: 8px; background: #eee; border-radius: 4px; margin-bottom: 16px; }
+        .progress-bar { height: 100%; background: #07c160; border-radius: 4px; }
+        .logs { background: #f6f6f6; padding: 12px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <a href="/" style="color: white; text-decoration: none; margin-right: 20px;">← 返回首页</a>
+            <h1>发布管理</h1>
+        </div>
+        <a href="/editor" class="btn btn-primary">写新文章</a>
+    </div>
+    
+    <div class="container">
+        <div class="card">
+            <h2>待发布文章</h2>
+            <table class="table">
+                <thead>
+                    <tr><th>标题</th><th>摘要</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                    <tr>
+                        <td>{{ article.title }}</td>
+                        <td>{{ article.summary[:30] }}...</td>
+                        <td><span class="status status-{{ article.status }}">{{ '草稿' if article.status == 'draft' else '待发布' }}</span></td>
+                        <td>{{ article.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="showPreview({{ article.id }})">预览并发布</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="modal" id="previewModal">
+        <div class="modal-content">
+            <h3>文章预览 & 发布</h3>
+            <div class="preview-content" id="previewContent"></div>
+            <div class="progress" id="progress" style="display: none;">
+                <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div class="logs" id="logs" style="display: none;"></div>
+            <div class="modal-footer">
+                <button class="btn btn-default" onclick="hidePreview()">取消</button>
+                <button class="btn btn-primary" onclick="publishArticle()">发布到公众号</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentArticleId = null;
+        
+        async function showPreview(articleId) {
+            currentArticleId = articleId;
+            
+            const response = await fetch(`/article/${articleId}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const html = `
+                    <h3>${result.title}</h3>
+                    <p style="color: #999; margin-bottom: 16px;">${result.summary || '暂无摘要'}</p>
+                    ${result.content}
+                `;
+                document.getElementById('previewContent').innerHTML = html;
+                document.getElementById('previewModal').classList.add('show');
+            }
+        }
+        
+        function hidePreview() {
+            document.getElementById('previewModal').classList.remove('show');
+            document.getElementById('logs').style.display = 'none';
+            document.getElementById('progress').style.display = 'none';
+            currentArticleId = null;
+        }
+        
+        async function publishArticle() {
+            if (!confirm('确认发布这篇文章到公众号吗？')) {
+                return;
+            }
+            
+            const logs = document.getElementById('logs');
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            
+            logs.style.display = 'block';
+            progress.style.display = 'block';
+            logs.innerHTML = '';
+            progressBar.style.width = '0%';
+            
+            try {
+                logs.innerHTML += '[1/2] 正在提交到草稿箱...\n';
+                progressBar.style.width = '30%';
+                
+                const submitResponse = await fetch('/publish/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ article_id: currentArticleId })
+                });
+                
+                const submitResult = await submitResponse.json();
+                if (!submitResult.success) {
+                    logs.innerHTML += `✗ 提交失败: ${submitResult.message}\n`;
+                    return;
+                }
+                
+                logs.innerHTML += '✓ 草稿提交成功\n';
+                progressBar.style.width = '60%';
+                
+                logs.innerHTML += '[2/2] 正在发布到公众号...\n';
+                progressBar.style.width = '80%';
+                
+                const publishResponse = await fetch('/publish/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ article_id: currentArticleId })
+                });
+                
+                const publishResult = await publishResponse.json();
+                if (publishResult.success) {
+                    logs.innerHTML += '✓ 发布成功！\n';
+                    progressBar.style.width = '100%';
+                    setTimeout(() => {
+                        alert('文章发布成功！');
+                        hidePreview();
+                        location.reload();
+                    }, 1000);
+                } else {
+                    logs.innerHTML += `✗ 发布失败: ${publishResult.message}\n`;
+                }
+            } catch (error) {
+                logs.innerHTML += `✗ 发生错误: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

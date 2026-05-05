@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信公众号管理系统</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
+        .header { background: #07c160; color: white; padding: 16px 24px; }
+        .header h1 { font-size: 20px; font-weight: normal; }
+        .container { padding: 24px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .card h2 { font-size: 16px; color: #333; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .btn { display: inline-block; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-success { background: #1989fa; color: white; }
+        .btn-default { background: #f5f5f5; color: #666; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+        .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        .table th { background: #fafafa; color: #666; font-weight: normal; }
+        .status { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+        .status-pending { background: #fff7e6; color: #d48806; }
+        .status-approved { background: #e8f5e9; color: #388e3c; }
+        .status-draft { background: #e3f2fd; color: #1976d2; }
+        .status-ready { background: #fce4ec; color: #c2185b; }
+        .status-published { background: #e8f5e9; color: #388e3c; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 8px; width: 480px; padding: 24px; }
+        .modal-content h3 { font-size: 16px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #333; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { resize: vertical; height: 100px; }
+        .modal-footer { text-align: right; margin-top: 20px; }
+        .keyword-input { width: 300px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-right: 12px; }
+        .suggestions { margin-top: 16px; }
+        .suggestion-item { padding: 10px; background: #f8f9fa; border-radius: 4px; margin-bottom: 8px; cursor: pointer; }
+        .suggestion-item:hover { background: #e9ecef; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>微信公众号管理系统</h1>
+    </div>
+    
+    <div class="container">
+        <div class="card">
+            <h2>AI选题建议</h2>
+            <input type="text" class="keyword-input" id="keywordInput" placeholder="输入关键词，生成选题建议">
+            <button class="btn btn-primary" onclick="generateTopics()">生成选题</button>
+            <div class="suggestions" id="suggestions"></div>
+        </div>
+        
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2>选题管理</h2>
+                <button class="btn btn-primary" onclick="showTopicModal()">添加选题</button>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr><th>标题</th><th>描述</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for topic in topics %}
+                    <tr>
+                        <td>{{ topic.title }}</td>
+                        <td>{{ topic.description[:30] }}...</td>
+                        <td><span class="status status-{{ topic.status }}">{{ '待审核' if topic.status == 'pending' else '已通过' if topic.status == 'approved' else '已拒绝' }}</span></td>
+                        <td>{{ topic.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% if topic.status == 'pending' %}
+                            <button class="btn btn-success btn-sm" onclick="approveTopic({{ topic.id }})">通过</button>
+                            {% endif %}
+                            {% if topic.status == 'approved' %}
+                            <a href="/editor?topic_id={{ topic.id }}" class="btn btn-default btn-sm">写文章</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2>文章管理</h2>
+                <a href="/editor" class="btn btn-primary">写新文章</a>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr><th>标题</th><th>摘要</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                    <tr>
+                        <td>{{ article.title }}</td>
+                        <td>{{ article.summary[:30] }}...</td>
+                        <td><span class="status status-{{ article.status }}">{{ '草稿' if article.status == 'draft' else '待发布' if article.status == 'ready' else '已发布' }}</span></td>
+                        <td>{{ article.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <a href="/editor?article_id={{ article.id }}" class="btn btn-default btn-sm">编辑</a>
+                            {% if article.status in ['draft', 'ready'] %}
+                            <a href="/publish" class="btn btn-success btn-sm">发布</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="modal" id="topicModal">
+        <div class="modal-content">
+            <h3>添加选题</h3>
+            <div class="form-group">
+                <label>选题标题</label>
+                <input type="text" id="topicTitle" placeholder="输入选题标题">
+            </div>
+            <div class="form-group">
+                <label>选题描述</label>
+                <textarea id="topicDesc" placeholder="输入选题描述"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" onclick="hideTopicModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveTopic()">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTopicModal() {
+            document.getElementById('topicModal').classList.add('show');
+        }
+        
+        function hideTopicModal() {
+            document.getElementById('topicModal').classList.remove('show');
+            document.getElementById('topicTitle').value = '';
+            document.getElementById('topicDesc').value = '';
+        }
+        
+        function saveTopic() {
+            const title = document.getElementById('topicTitle').value;
+            const desc = document.getElementById('topicDesc').value;
+            
+            if (!title) {
+                alert('请输入选题标题');
+                return;
+            }
+            
+            fetch('/topic/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description: desc })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    alert('选题添加成功');
+                    hideTopicModal();
+                    location.reload();
+                }
+            });
+        }
+        
+        function approveTopic(id) {
+            if (confirm('确认通过此选题？')) {
+                fetch(`/topic/${id}/approve`, { method: 'POST' })
+                    .then(res => res.json()).then(data => {
+                        if (data.success) location.reload();
+                    });
+            }
+        }
+        
+        function generateTopics() {
+            const keywords = document.getElementById('keywordInput').value;
+            if (!keywords) {
+                alert('请输入关键词');
+                return;
+            }
+            
+            fetch('/ai/topic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keywords })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    const html = data.suggestions.map(s => 
+                        `<div class="suggestion-item" onclick="useSuggestion('${s}')">${s}</div>`
+                    ).join('');
+                    document.getElementById('suggestions').innerHTML = html;
+                }
+            });
+        }
+        
+        function useSuggestion(title) {
+            document.getElementById('topicTitle').value = title;
+            showTopicModal();
+        }
+    </script>
+</body>
+</html>

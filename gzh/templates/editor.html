@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章编辑器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f5f7fa; }
+        .header { background: #07c160; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: normal; }
+        .btn { display: inline-block; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; cursor: pointer; border: none; }
+        .btn-primary { background: #07c160; color: white; }
+        .btn-default { background: #f5f5f5; color: #666; margin-right: 12px; }
+        .container { padding: 24px; max-width: 800px; margin: 0 auto; }
+        .editor-card { background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #333; }
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; }
+        .form-group textarea { resize: vertical; }
+        #editor { min-height: 400px; padding: 16px; border: 1px solid #ddd; border-radius: 4px; outline: none; }
+        #editor:focus { border-color: #07c160; }
+        .preview-section { margin-top: 24px; }
+        .preview-title { font-size: 18px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+        #preview { padding: 16px; background: #fafafa; border-radius: 4px; min-height: 200px; }
+        .format-btn { margin-right: 8px; margin-bottom: 8px; }
+        .btn-ai { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-ai:hover { opacity: 0.9; }
+        .ai-section { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+        .ai-section h3 { font-size: 14px; margin-bottom: 12px; color: #666; }
+        .length-options { display: flex; gap: 8px; margin-bottom: 12px; }
+        .length-option { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .length-option.active { background: #667eea; color: white; border-color: #667eea; }
+        .loading { display: flex; align-items: center; gap: 8px; color: #667eea; }
+        .loading-spinner { width: 20px; height: 20px; border: 2px solid #667eea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <a href="/" style="color: white; text-decoration: none; margin-right: 20px;">← 返回首页</a>
+            <h1>文章编辑器</h1>
+        </div>
+        <div>
+            <button class="btn btn-default" onclick="saveDraft()">保存草稿</button>
+            <button class="btn btn-ai" onclick="generateArticle()" id="aiBtn">✦ AI生成文章</button>
+            <button class="btn btn-primary" onclick="submitArticle()">提交审核</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="editor-card">
+            <div class="form-group">
+                <label>文章标题</label>
+                <input type="text" id="title" placeholder="输入文章标题" value="{{ topic.title if topic else '' }}">
+            </div>
+            
+            <div class="form-group">
+                <label>文章摘要</label>
+                <textarea id="summary" placeholder="输入文章摘要（不超过500字）" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>封面图片URL</label>
+                <input type="text" id="coverImage" placeholder="输入封面图片URL">
+            </div>
+            
+            <div class="ai-section">
+                <h3>✦ AI智能写作</h3>
+                <div class="length-options">
+                    <div class="length-option active" data-length="short" onclick="selectLength('short')">简短（300字）</div>
+                    <div class="length-option" data-length="medium" onclick="selectLength('medium')">中等（800字）</div>
+                    <div class="length-option" data-length="long" onclick="selectLength('long')">详细（1500字）</div>
+                </div>
+                <button class="btn btn-ai" onclick="generateArticle()" id="aiBtn2">
+                    <span id="aiBtnText">让AI帮我写文章</span>
+                    <span id="aiLoading" class="loading" style="display: none;">
+                        <span class="loading-spinner"></span>
+                        AI正在创作中...
+                    </span>
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label>排版美化</label>
+                <div>
+                    <button class="btn btn-default format-btn" onclick="formatText('bold')">粗体</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('italic')">斜体</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('underline')">下划线</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('strikeThrough')">删除线</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('justifyLeft')">左对齐</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('justifyCenter')">居中</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('justifyRight')">右对齐</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('insertUnorderedList')">无序列表</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('insertOrderedList')">有序列表</button>
+                    <button class="btn btn-default format-btn" onclick="formatText('insertLink')">插入链接</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>文章内容</label>
+                <div id="editor" contenteditable="true" placeholder="在这里输入文章内容..."></div>
+            </div>
+            
+            <div class="preview-section">
+                <div class="preview-title">预览效果</div>
+                <div id="preview"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const editor = document.getElementById('editor');
+        const articleId = '{{ article_id if article_id else '' }}';
+        const topicId = '{{ topic.id if topic else '' }}';
+        const topicTitle = '{{ topic.title if topic else '' }}';
+        let selectedLength = 'medium';
+        
+        editor.addEventListener('focus', () => {
+            if (editor.innerHTML === '<br>' || editor.innerHTML === '') {
+                editor.innerHTML = '';
+            }
+        });
+        
+        editor.addEventListener('blur', () => {
+            if (editor.innerHTML === '') {
+                editor.innerHTML = '<br>';
+            }
+            updatePreview();
+        });
+        
+        editor.addEventListener('input', updatePreview);
+        
+        function updatePreview() {
+            const title = document.getElementById('title').value || '预览标题';
+            const content = editor.innerHTML || '<p>文章内容预览...</p>';
+            document.getElementById('preview').innerHTML = `<h3>${title}</h3>${content}`;
+        }
+        
+        function formatText(command) {
+            if (command === 'insertLink') {
+                const url = prompt('请输入链接地址：');
+                if (url) {
+                    document.execCommand(command, false, url);
+                }
+            } else {
+                document.execCommand(command, false, null);
+            }
+            editor.focus();
+        }
+        
+        function selectLength(length) {
+            selectedLength = length;
+            document.querySelectorAll('.length-option').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.length-option[data-length="${length}"]`).classList.add('active');
+        }
+        
+        async function generateArticle() {
+            const topic = document.getElementById('title').value || topicTitle;
+            
+            if (!topic) {
+                alert('请先输入文章标题或选题');
+                return;
+            }
+            
+            document.getElementById('aiBtnText').style.display = 'none';
+            document.getElementById('aiLoading').style.display = 'flex';
+            document.getElementById('aiBtn').disabled = true;
+            document.getElementById('aiBtn2').disabled = true;
+            
+            try {
+                const response = await fetch('/ai/article', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, length: selectedLength })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('summary').value = result.summary;
+                    const htmlContent = markdownToHtml(result.content);
+                    editor.innerHTML = htmlContent;
+                    updatePreview();
+                    alert('文章生成成功！');
+                } else {
+                    alert('文章生成失败: ' + result.message);
+                }
+            } catch (error) {
+                alert('生成文章时发生错误: ' + error.message);
+            } finally {
+                document.getElementById('aiBtnText').style.display = 'block';
+                document.getElementById('aiLoading').style.display = 'none';
+                document.getElementById('aiBtn').disabled = false;
+                document.getElementById('aiBtn2').disabled = false;
+            }
+        }
+        
+        function markdownToHtml(markdown) {
+            let html = markdown;
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.+<\/li>)+/g, '<ul>$&</ul>');
+            html = html.replace(/^(?!<)[^\n]+$/gm, '<p>$&</p>');
+            html = html.replace(/\n/g, '');
+            return html;
+        }
+        
+        async function saveDraft() {
+            const data = getArticleData();
+            
+            const response = await fetch('/article/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('草稿保存成功');
+                if (!articleId) {
+                    window.location.search = `?article_id=${result.article_id}`;
+                }
+            } else {
+                alert('保存失败');
+            }
+        }
+        
+        async function submitArticle() {
+            const data = getArticleData();
+            
+            if (!data.title) {
+                alert('请输入文章标题');
+                return;
+            }
+            if (!data.content || data.content === '<br>') {
+                alert('请输入文章内容');
+                return;
+            }
+            
+            const response = await fetch('/article/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('文章提交成功，已进入发布队列');
+                window.location.href = '/publish';
+            } else {
+                alert('提交失败');
+            }
+        }
+        
+        function getArticleData() {
+            return {
+                id: articleId || null,
+                title: document.getElementById('title').value,
+                content: editor.innerHTML,
+                summary: document.getElementById('summary').value,
+                cover_image: document.getElementById('coverImage').value,
+                topic_id: topicId || null
+            };
+        }
+        
+        async function loadArticle() {
+            if (articleId) {
+                const response = await fetch(`/article/${articleId}`);
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('title').value = result.title;
+                    editor.innerHTML = result.content;
+                    document.getElementById('summary').value = result.summary;
+                    document.getElementById('coverImage').value = result.cover_image;
+                    updatePreview();
+                }
+            }
+        }
+        
+        loadArticle();
+        updatePreview();
+    </script>
+</body>
+</html>

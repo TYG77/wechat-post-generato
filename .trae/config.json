@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp"],
+      "env": {
+        "NODE_OPTIONS": "--no-warnings"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["@upstashed/context7-mcp"],
+      "env": {
+        "NODE_OPTIONS": "--no-warnings"
+      }
+    },
+    "lark": {
+      "command": "npx",
+      "args": ["@larksuiteoapi/lark-mcp"],
+      "env": {
+        "NODE_OPTIONS": "--no-warnings",
+        "LARK_APP_ID": "your_app_id_here",
+        "LARK_APP_SECRET": "your_app_secret_here"
+      }
+    }
+  }
+}
